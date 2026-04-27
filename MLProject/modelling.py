@@ -47,64 +47,65 @@ X_train, X_test, y_train, y_test = train_test_split(
 print(f"[INFO] Train: {X_train.shape}, Test: {X_test.shape}")
 
 # ─── MLflow Tracking ───────────────────────────────────────────────────────────
-mlflow.set_experiment("Iris_CI_Workflow_Fathi")
+active_run = mlflow.active_run()
+if active_run is None:
+    mlflow.set_experiment("Iris_CI_Workflow_Fathi")
+    active_run = mlflow.start_run()
 
-print("\n[INFO] Memulai MLflow run...")
-with mlflow.start_run() as run:
-    print(f"[INFO] Run ID: {run.info.run_id}")
+print(f"[INFO] Run ID: {active_run.info.run_id}")
 
-    # Log Parameters
-    mlflow.log_param("n_estimators", args.n_estimators)
-    mlflow.log_param("max_depth", args.max_depth)
-    mlflow.log_param("min_samples_split", args.min_samples_split)
-    mlflow.log_param("test_size", args.test_size)
-    mlflow.log_param("random_state", args.random_state)
+# Log Parameters
+mlflow.log_param("n_estimators", args.n_estimators)
+mlflow.log_param("max_depth", args.max_depth)
+mlflow.log_param("min_samples_split", args.min_samples_split)
+mlflow.log_param("test_size", args.test_size)
+mlflow.log_param("random_state", args.random_state)
 
-    # Training
-    model = RandomForestClassifier(
-        n_estimators=args.n_estimators,
-        max_depth=args.max_depth,
-        min_samples_split=args.min_samples_split,
-        random_state=args.random_state
-    )
-    model.fit(X_train, y_train)
+# Training
+model = RandomForestClassifier(
+    n_estimators=args.n_estimators,
+    max_depth=args.max_depth,
+    min_samples_split=args.min_samples_split,
+    random_state=args.random_state
+)
+model.fit(X_train, y_train)
 
-    # Evaluasi
-    y_pred = model.predict(X_test)
-    accuracy  = accuracy_score(y_test, y_pred)
-    precision = precision_score(y_test, y_pred, average="weighted")
-    recall    = recall_score(y_test, y_pred, average="weighted")
-    f1        = f1_score(y_test, y_pred, average="weighted")
+# Evaluasi
+y_pred = model.predict(X_test)
+accuracy  = accuracy_score(y_test, y_pred)
+precision = precision_score(y_test, y_pred, average="weighted")
+recall    = recall_score(y_test, y_pred, average="weighted")
+f1        = f1_score(y_test, y_pred, average="weighted")
 
-    print(f"\n[HASIL] Accuracy : {accuracy:.4f}")
-    print(f"[HASIL] Precision: {precision:.4f}")
-    print(f"[HASIL] Recall   : {recall:.4f}")
-    print(f"[HASIL] F1-Score : {f1:.4f}")
+print(f"\n[HASIL] Accuracy : {accuracy:.4f}")
+print(f"[HASIL] Precision: {precision:.4f}")
+print(f"[HASIL] Recall   : {recall:.4f}")
+print(f"[HASIL] F1-Score : {f1:.4f}")
 
-    # Log Metrics
-    mlflow.log_metric("accuracy", accuracy)
-    mlflow.log_metric("precision_weighted", precision)
-    mlflow.log_metric("recall_weighted", recall)
-    mlflow.log_metric("f1_score_weighted", f1)
+# Log Metrics
+mlflow.log_metric("accuracy", accuracy)
+mlflow.log_metric("precision_weighted", precision)
+mlflow.log_metric("recall_weighted", recall)
+mlflow.log_metric("f1_score_weighted", f1)
 
-    # Log Model
-    mlflow.sklearn.log_model(model, artifact_path="model")
+# Log Model
+mlflow.sklearn.log_model(model, artifact_path="model")
 
-    # Confusion Matrix Artifact
-    cm = confusion_matrix(y_test, y_pred)
-    fig, ax = plt.subplots(figsize=(6, 5))
-    sns.heatmap(cm, annot=True, fmt="d", cmap="Blues",
-                xticklabels=["Setosa", "Versicolor", "Virginica"],
-                yticklabels=["Setosa", "Versicolor", "Virginica"], ax=ax)
-    ax.set_title("Confusion Matrix - Fathi Ananda Mas'ud")
-    ax.set_xlabel("Predicted")
-    ax.set_ylabel("Actual")
-    plt.tight_layout()
-    cm_path = "confusion_matrix.png"
-    plt.savefig(cm_path)
-    plt.close()
-    mlflow.log_artifact(cm_path)
-    if os.path.exists(cm_path):
-        os.remove(cm_path)
+# Confusion Matrix Artifact
+cm = confusion_matrix(y_test, y_pred)
+fig, ax = plt.subplots(figsize=(6, 5))
+sns.heatmap(cm, annot=True, fmt="d", cmap="Blues",
+            xticklabels=["Setosa", "Versicolor", "Virginica"],
+            yticklabels=["Setosa", "Versicolor", "Virginica"], ax=ax)
+ax.set_title("Confusion Matrix - Fathi Ananda Mas'ud")
+ax.set_xlabel("Predicted")
+ax.set_ylabel("Actual")
+plt.tight_layout()
+cm_path = "confusion_matrix.png"
+plt.savefig(cm_path)
+plt.close()
+mlflow.log_artifact(cm_path)
+if os.path.exists(cm_path):
+    os.remove(cm_path)
 
 print("\n[INFO] Training selesai!")
