@@ -47,9 +47,11 @@ X_train, X_test, y_train, y_test = train_test_split(
 print(f"[INFO] Train: {X_train.shape}, Test: {X_test.shape}")
 
 # ─── MLflow Tracking ───────────────────────────────────────────────────────────
+mlflow.set_experiment("Iris_CI_Workflow_Fathi")
+
 active_run = mlflow.active_run()
+
 if active_run is None:
-    mlflow.set_experiment("Iris_CI_Workflow_Fathi")
     active_run = mlflow.start_run()
 
 print(f"[INFO] Run ID: {active_run.info.run_id}")
