@@ -8,7 +8,7 @@ on:
   pull_request:
     branches:
       - main
-  workflow_dispatch:  # Manual trigger
+  workflow_dispatch:
 
 jobs:
   train:
@@ -38,20 +38,23 @@ jobs:
       # ── 4. Verify Dataset ─────────────────────────────────────────────────────
       - name: Verify Dataset
         run: |
-          echo "Dataset files:"
-          ls -lh iris_preprocessing.csv || echo "Dataset not found, generating..."
           python -c "
-          import pandas as pd
+          import os, pandas as pd
           from sklearn.datasets import load_iris
           from sklearn.preprocessing import StandardScaler
-          iris = load_iris(as_frame=True)
-          df = iris.frame
-          df.columns = ['sepal_length','sepal_width','petal_length','petal_width','target']
-          scaler = StandardScaler()
-          feats = ['sepal_length','sepal_width','petal_length','petal_width']
-          df[feats] = scaler.fit_transform(df[feats])
-          df.to_csv('iris_preprocessing.csv', index=False)
-          print(f'Dataset ready: {df.shape}')
+          if not os.path.exists('iris_preprocessing.csv'):
+              iris = load_iris(as_frame=True)
+              df = iris.frame
+              df.columns = ['sepal_length','sepal_width','petal_length','petal_width','target']
+              from sklearn.preprocessing import StandardScaler
+              scaler = StandardScaler()
+              feats = ['sepal_length','sepal_width','petal_length','petal_width']
+              df[feats] = scaler.fit_transform(df[feats])
+              df.to_csv('iris_preprocessing.csv', index=False)
+              print(f'Dataset generated: {df.shape}')
+          else:
+              df = pd.read_csv('iris_preprocessing.csv')
+              print(f'Dataset loaded: {df.shape}')
           "
 
       # ── 5. Run MLflow Training ─────────────────────────────────────────────────
@@ -67,46 +70,12 @@ jobs:
       - name: List MLflow Artifacts
         run: |
           echo "MLflow runs:"
-          ls -lah mlruns/ || echo "No mlruns found"
+          find mlruns/ -type f | head -30 || echo "No mlruns found"
 
       # ── 7. Upload Artifacts to GitHub ─────────────────────────────────────────
-      - name: Upload MLflow Artifacts to GitHub
+      - name: Upload MLflow Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: mlflow-artifacts-${{ github.run_number }}
           path: MLProject/mlruns/
           retention-days: 30
-
-      # ── 8. Build Docker Image (Advanced) ──────────────────────────────────────
-      - name: Build Docker Image
-        if: github.ref == 'refs/heads/main'
-        env:
-          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-        run: |
-          pip install mlflow==2.19.0
-          # Login ke Docker Hub
-          echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
-
-          # Dapatkan Run ID terbaru
-          RUN_ID=$(ls mlruns/0/ | grep -v "meta.yaml" | tail -1)
-          echo "Run ID: $RUN_ID"
-
-          # Build Docker image menggunakan mlflow build-docker
-          mlflow models build-docker \
-            --model-uri "mlruns/0/$RUN_ID/artifacts/model" \
-            --name "$DOCKER_USERNAME/iris-classifier-fathi"
-
-          # Push ke Docker Hub
-          docker push "$DOCKER_USERNAME/iris-classifier-fathi:latest"
-
-          # Simpan link ke file
-          echo "https://hub.docker.com/r/$DOCKER_USERNAME/iris-classifier-fathi" > docker_image_link.txt
-          cat docker_image_link.txt
-
-      - name: Upload Docker Info
-        if: github.ref == 'refs/heads/main'
-        uses: actions/upload-artifact@v4
-        with:
-          name: docker-info
-          path: MLProject/docker_image_link.txt
